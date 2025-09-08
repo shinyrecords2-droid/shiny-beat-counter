@@ -62,9 +62,7 @@
     .number{position:relative; margin-top:12px; font-size: clamp(36px, 10.8vw, 64px); line-height:1; color:var(--amber); text-shadow: 0 2px 0 #614d00, 0 0 14px rgba(255,225,0,.45), 0 0 34px rgba(255,225,0,.2);
       letter-spacing:2px; transform-origin:center;}
 
-    .brand-text{position:absolute; left:10px; bottom:10px; font-size:10px; color:var(--red); opacity:.9}
-.brand-img{position:absolute; left:10px; bottom:8px; height:18px; image-rendering:auto; filter: drop-shadow(0 1px 0 rgba(0,0,0,.25));}
-@media (max-width:380px){ .brand-text{font-size:9px} }
+    .brand{position:absolute; left:10px; bottom:10px; font-size:10px; color:var(--red); opacity:.9}
 
     @keyframes glowPulse{0%{transform:scale(1); filter:brightness(1);} 50%{transform:scale(1.035); filter:brightness(1.15);} 100%{transform:scale(1);} }
     @keyframes pop{0%{transform:scale(1);} 40%{transform:scale(1.08);} 100%{transform:scale(1);} }
@@ -86,21 +84,26 @@
     .hint{margin-top:12px; text-align:center; font-size:10px; color:#bdbdbd; opacity:.7}
 
     /* WhatsApp Badge */
+    .wa{position:absolute; right:14px; top:14px; background:#25D366; color:#05250f; font-size:10px; padding:6px 8px; border-radius:8px; box-shadow:0 2px 0 rgba(0,0,0,.25)}
+    .wa b{font-weight:900}
+
     /* Fokusrahmen für Barrierefreiheit */
+    a.device:focus{outline: none}
+    a.device:focus .device{box-shadow:0 0 0 4px #25d36699, var(--shadow)}
+
     /* klein */
     @media (max-width:380px){ .brand{font-size:9px} }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <!-- HINWEIS: Setze den WhatsApp-Invite-Link in data-whatsapp-url oder per URL-Parameter ?wa=...  -->
-    <div id="device" class="device">
-            <div class="screen">
+    <a id="joinLink" class="device" href="#" target="_blank" rel="noopener noreferrer">
+      <div class="wa">Zur <b>WhatsApp</b>-Gruppe →</div>
+      <div class="screen">
         <div class="display">
           <div id="label" class="label">Nur noch … Beats</div>
           <div id="number" class="number">0</div>
-          <img id="brandLogo" class="brand-img" alt="Shiny Records Logo" />
-          <div id="brandText" class="brand-text">Shiny Records</div>
+          <div class="brand">Shiny Records</div>
           <div class="crt"></div>
         </div>
       </div>
@@ -112,47 +115,54 @@
         </div>
       </div>
       <div class="speaker" aria-hidden="true"></div>
-          </div>
+      <div class="hint" aria-hidden="true">Tippe / klicke auf das Gerät, um die Gruppe zu öffnen</div>
+    </a>
   </div>
+
   <script>
     (function(){
       // ===== Konfiguration & Live-Update =====
-      // Standardwerte – können via URL Parameter oder externer JSON überschrieben werden
       const CONFIG = {
-        targetWatchHours: 4000,
-        currentWatchHours: 530,
+        targetWatchHours: 4000,          // Ziel in Stunden (YouTube Voraussetzung)
+        currentWatchHours: 530,          // Aktuell (vom Nutzer genannt)
+        // Variante A: Direkt Stunden je Beat je Monat (dein Fall: 7,9 h/Beat/Monat)
+        perBeatHoursPerMonth: 7.9,
+        period: 'month',                 // für pbhm = month
+        // Variante B (optional): falls du lieber über Views/Ø-Watchtime pro View rechnest
         avgWatchTimeSec: 150,
         viewsPerBeatPerWeek: 250,
         viewsPerBeatPerMonth: null,
-        period: 'month',
-        // Neues Feld für Logo-URL
-        logoUrl: null,
-        // Optional: externe JSON-Konfig
+
+        whatsappUrl: 'https://chat.whatsapp.com/DEIN_EINLADUNGS_LINK', // ersetzen
+        // Optional: URL zu einer JSON mit obigen Feldern
         configUrl: null,
-        refreshMs: 300000
+        refreshMs: 300000                // 5 Min
       };
 
-      // ===== Hilfsfunktionen =====
+      // ===== URL-Overrides =====
       const qs = new URLSearchParams(location.search);
       const toNum = (v)=>{ const n = Number(v); return isFinite(n) ? n : null; };
       const overrideFromQuery = () => {
         if(qs.has('target')) CONFIG.targetWatchHours = toNum(qs.get('target')) ?? CONFIG.targetWatchHours;
         if(qs.has('wh'))     CONFIG.currentWatchHours = toNum(qs.get('wh')) ?? CONFIG.currentWatchHours;
+        if(qs.has('period')) CONFIG.period = (qs.get('period')+"").toLowerCase()==='week' ? 'week':'month';
+        if(qs.has('pbhm'))   CONFIG.perBeatHoursPerMonth = toNum(qs.get('pbhm')) ?? CONFIG.perBeatHoursPerMonth;
         if(qs.has('avg'))    CONFIG.avgWatchTimeSec = toNum(qs.get('avg')) ?? CONFIG.avgWatchTimeSec;    // Sekunden
         if(qs.has('vpw'))    CONFIG.viewsPerBeatPerWeek = toNum(qs.get('vpw')) ?? CONFIG.viewsPerBeatPerWeek;
         if(qs.has('vpm'))    CONFIG.viewsPerBeatPerMonth = toNum(qs.get('vpm')) ?? CONFIG.viewsPerBeatPerMonth;
-        if(qs.has('period')) CONFIG.period = (qs.get('period')+"").toLowerCase()==='week' ? 'week':'month';
-        if(qs.has('logo'))   CONFIG.logoUrl = qs.get('logo');
+        if(qs.has('wa'))     CONFIG.whatsappUrl = qs.get('wa');
         if(qs.has('config')) CONFIG.configUrl = qs.get('config');
         if(qs.has('refresh')) CONFIG.refreshMs = toNum(qs.get('refresh')) ?? CONFIG.refreshMs;
       };
 
-      // Anzahl Beats berechnen
       const calcBeatsNeeded = () => {
         const remaining = Math.max(0, (CONFIG.targetWatchHours||0) - (CONFIG.currentWatchHours||0));
+        if (CONFIG.period==='month' && CONFIG.perBeatHoursPerMonth && CONFIG.perBeatHoursPerMonth>0){
+          return Math.ceil(remaining / CONFIG.perBeatHoursPerMonth);
+        }
         const avgHrs = (CONFIG.avgWatchTimeSec||0) / 3600; // Stunden pro View
         let perBeatViews = CONFIG.period==='week' ? (CONFIG.viewsPerBeatPerWeek||0) : (CONFIG.viewsPerBeatPerMonth ?? Math.round((CONFIG.viewsPerBeatPerWeek||0)*4.345));
-        const perBeatHrs = avgHrs * perBeatViews; // Stunden pro Beat im gewählten Zeitraum
+        const perBeatHrs = avgHrs * perBeatViews; // Stunden pro Beat
         if (!perBeatHrs || perBeatHrs<=0) return Infinity;
         return Math.ceil(remaining / perBeatHrs);
       };
@@ -161,8 +171,7 @@
       const fmt = new Intl.NumberFormat('de-DE');
       const labelEl = document.getElementById('label');
       const numEl = document.getElementById('number');
-      const brandImg = document.getElementById('brandLogo');
-      const brandText = document.getElementById('brandText');
+      const linkEl = document.getElementById('joinLink');
 
       let lastValue = null;
       const render = () => {
@@ -171,22 +180,10 @@
         const labelText = `Nur noch ${safe} Beats`;
         labelEl.textContent = labelText;
         numEl.textContent = safe;
-        // Pop-Animation bei Veränderung
-        if (beats!==lastValue){
-          numEl.style.animation = 'none'; numEl.offsetHeight; numEl.style.animation = 'pop .38s ease-out';
-          lastValue = beats;
-        }
-        // Logo setzen (wenn vorhanden), sonst Fallback-Text
-        if (CONFIG.logoUrl){
-          if (brandImg && brandText){
-            brandImg.src = CONFIG.logoUrl;
-            brandImg.onload = ()=>{ brandImg.style.display='block'; brandText.style.display='none'; };
-            brandImg.onerror = ()=>{ brandImg.style.display='none'; brandText.style.display='block'; };
-          }
-        }
+        if (beats!==lastValue){ numEl.style.animation = 'none'; numEl.offsetHeight; numEl.style.animation = 'pop .38s ease-out'; lastValue = beats; }
+        if (CONFIG.whatsappUrl) linkEl.href = CONFIG.whatsappUrl;
       };
 
-      // Externe Konfig laden (optional)
       const loadExternalConfig = async () => {
         if (!CONFIG.configUrl) return;
         try{
@@ -194,24 +191,16 @@
           if(!res.ok) throw new Error('HTTP '+res.status);
           const json = await res.json();
           Object.assign(CONFIG, json);
-        }catch(e){
-          // schweigend weitermachen – Anzeige bleibt mit lokalen Defaults aktiv
-          console.warn('Konfiguration konnte nicht geladen werden:', e);
-        }
+        }catch(e){ console.warn('Konfiguration konnte nicht geladen werden:', e); }
       };
 
-      // Bootstrap
+      // Start
       overrideFromQuery();
       render();
       if (CONFIG.configUrl){
-        loadExternalConfig().then(()=>{ render(); });
-        if (CONFIG.refreshMs && CONFIG.refreshMs>0){
-          setInterval(async ()=>{ await loadExternalConfig(); render(); }, CONFIG.refreshMs);
-        }
+        loadExternalConfig().then(render);
+        if (CONFIG.refreshMs && CONFIG.refreshMs>0){ setInterval(async ()=>{ await loadExternalConfig(); render(); }, CONFIG.refreshMs); }
       }
-
-      // Branding unten links stets korrekt setzen – Wunsch: rot & klein
-      // (bereits statisch gesetzt; bei Bedarf hier dynamisch überschreibbar)
     })();
   </script>
 </body>
