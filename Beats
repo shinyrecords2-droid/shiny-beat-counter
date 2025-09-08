@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shiny Records – Beat‑Counter</title>
+  <meta name="description" content="Retro Gameboy Anzeige: Wieviele neue Beats noch bis 4.000h Watchtime – für WhatsApp Gruppe / externen Link." />
+  <!-- Pixel Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --gameboy-yellow:#ffd43b; /* Gehäusefarbe */
+      --screen:#0d0f10;         /* Display-Hintergrund */
+      --glass:#0f1a24;          /* leichte Tönung */
+      --red:#ff2a2a;            /* rote Glow-Schrift */
+      --red-dark:#c11616;
+      --amber:#ffe100;          /* knallgelbe Zahl */
+      --amber-dark:#f0c800;
+      --shadow: 0 12px 24px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:radial-gradient(circle at 30% 10%,#2a2a2a 0%,#121212 55%,#0a0a0a 100%);font-family:"Press Start 2P",system-ui,Segoe UI,Roboto,Arial}
+    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+
+    /* Gesamtes Gerät ist klickbarer Link (WhatsApp/Externer Link) */
+    a.device{position:relative;display:block;text-decoration:none;}
+
+    .device{
+      width: min(92vw, 380px);
+      height: calc(min(92vw, 380px) * 1.55);
+      background: linear-gradient(180deg, #ffe14a 0%, var(--gameboy-yellow) 35%, #ffcd28 100%);
+      border-radius: 24px 24px 64px 24px;
+      box-shadow: var(--shadow), inset 0 -6px 0 rgba(0,0,0,.1), inset 0 6px 0 rgba(255,255,255,.15);
+      padding: 18px 18px 28px 18px;
+    }
+
+    /* Lautsprecherlöcher */
+    .speaker{position:absolute; right:20px; bottom:106px; width:88px; height:46px; transform:rotate(-18deg); display:flex; align-items:center}
+    .speaker::before{content:""; display:block; width:100%; height:5px; background: repeating-linear-gradient(90deg, rgba(0,0,0,.55) 0 4px, transparent 4px 7px); border-radius:3px; box-shadow: 0 10px 0 rgba(0,0,0,.35), 0 20px 0 rgba(0,0,0,.28), 0 30px 0 rgba(0,0,0,.2);}
+
+    /* Screen Rahmen */
+    .screen{position:relative;background:linear-gradient(180deg,#0b0b0b 0%, var(--screen) 100%); border-radius:14px; height:56%; box-shadow:inset 0 0 0 3px #1b1b1b, inset 0 0 40px rgba(0,255,60,.08), inset 0 0 120px rgba(0,200,255,.05); padding:16px;}
+    .screen::after{ /* Glasreflex */ content:""; position:absolute; inset:0; background:linear-gradient(200deg, rgba(255,255,255,.08), transparent 60%);
+      border-radius:14px; pointer-events:none; mix-blend-mode:screen;}
+
+    /* Display-Inhalt */
+    .display{position:relative; width:100%; height:100%; background:radial-gradient(ellipse at 50% 40%, var(--glass) 0%, #0a1218 60%, #05090d 100%);
+      border-radius:8px; box-shadow:inset 0 0 60px rgba(0,0,0,.6), inset 0 0 4px rgba(255,255,255,.08);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px 8px 12px 8px;
+      overflow:hidden; isolation:isolate;
+    }
+
+    /* CRT Scanlines / Noise */
+    .crt{position:absolute; inset:0; background: repeating-linear-gradient(transparent 0 2px, rgba(255,255,255,.025) 2px 3px);
+      mix-blend-mode:overlay; opacity:.3; pointer-events:none;}
+
+    .label{position:relative; font-size: clamp(13px, 3.1vw, 18px); line-height:1.35; text-align:center; color:var(--red); text-shadow: 0 0 8px rgba(255,0,0,.65), 0 0 22px rgba(255,0,0,.35), 0 2px 0 var(--red-dark);
+      animation: glowPulse 1.8s ease-in-out infinite;
+    }
+
+    .number{position:relative; margin-top:12px; font-size: clamp(36px, 10.8vw, 64px); line-height:1; color:var(--amber); text-shadow: 0 2px 0 #614d00, 0 0 14px rgba(255,225,0,.45), 0 0 34px rgba(255,225,0,.2);
+      letter-spacing:2px; transform-origin:center;}
+
+    .brand-text{position:absolute; left:10px; bottom:10px; font-size:10px; color:var(--red); opacity:.9}
+.brand-img{position:absolute; left:10px; bottom:8px; height:18px; image-rendering:auto; filter: drop-shadow(0 1px 0 rgba(0,0,0,.25));}
+@media (max-width:380px){ .brand-text{font-size:9px} }
+
+    @keyframes glowPulse{0%{transform:scale(1); filter:brightness(1);} 50%{transform:scale(1.035); filter:brightness(1.15);} 100%{transform:scale(1);} }
+    @keyframes pop{0%{transform:scale(1);} 40%{transform:scale(1.08);} 100%{transform:scale(1);} }
+
+    /* Steuerkreuz + Buttons */
+    .controls{position:absolute; left:24px; bottom:38px; display:flex; align-items:center}
+    .dpad{position:relative; width:64px; height:64px; background:#2a2a2a; border-radius:10px; box-shadow:inset 0 0 0 6px #1b1b1b, 0 6px 0 rgba(0,0,0,.25);} 
+    .dpad::before,.dpad::after{content:""; position:absolute; background:#121212;}
+    .dpad::before{width:18px; height:54px; left:23px; top:5px; border-radius:6px;}
+    .dpad::after{height:18px; width:54px; top:23px; left:5px; border-radius:6px;}
+
+    .ab{margin-left:34px; transform: rotate(-18deg); display:flex}
+    .btn{width:48px; height:48px; border-radius:50%; background: radial-gradient(circle at 35% 30%, #ff7a7a 0%, #ff3d3d 35%, var(--red) 100%);
+      box-shadow: inset 0 -6px 0 rgba(0,0,0,.2), 0 6px 0 rgba(0,0,0,.25);
+      margin-left:16px; position:relative;}
+    .btn::after{content:""; position:absolute; inset:0; border-radius:50%; background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.5), transparent 40%);
+      mix-blend-mode:screen;}
+
+    .hint{margin-top:12px; text-align:center; font-size:10px; color:#bdbdbd; opacity:.7}
+
+    /* WhatsApp Badge */
+    /* Fokusrahmen für Barrierefreiheit */
+    /* klein */
+    @media (max-width:380px){ .brand{font-size:9px} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- HINWEIS: Setze den WhatsApp-Invite-Link in data-whatsapp-url oder per URL-Parameter ?wa=...  -->
+    <div id="device" class="device">
+            <div class="screen">
+        <div class="display">
+          <div id="label" class="label">Nur noch … Beats</div>
+          <div id="number" class="number">0</div>
+          <img id="brandLogo" class="brand-img" alt="Shiny Records Logo" />
+          <div id="brandText" class="brand-text">Shiny Records</div>
+          <div class="crt"></div>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="dpad" aria-hidden="true"></div>
+        <div class="ab" aria-hidden="true">
+          <div class="btn" title="WhatsApp öffnen"></div>
+          <div class="btn" title="WhatsApp öffnen"></div>
+        </div>
+      </div>
+      <div class="speaker" aria-hidden="true"></div>
+          </div>
+  </div>
+  <script>
+    (function(){
+      // ===== Konfiguration & Live-Update =====
+      // Standardwerte – können via URL Parameter oder externer JSON überschrieben werden
+      const CONFIG = {
+        targetWatchHours: 4000,
+        currentWatchHours: 530,
+        avgWatchTimeSec: 150,
+        viewsPerBeatPerWeek: 250,
+        viewsPerBeatPerMonth: null,
+        period: 'month',
+        // Neues Feld für Logo-URL
+        logoUrl: null,
+        // Optional: externe JSON-Konfig
+        configUrl: null,
+        refreshMs: 300000
+      };
+
+      // ===== Hilfsfunktionen =====
+      const qs = new URLSearchParams(location.search);
+      const toNum = (v)=>{ const n = Number(v); return isFinite(n) ? n : null; };
+      const overrideFromQuery = () => {
+        if(qs.has('target')) CONFIG.targetWatchHours = toNum(qs.get('target')) ?? CONFIG.targetWatchHours;
+        if(qs.has('wh'))     CONFIG.currentWatchHours = toNum(qs.get('wh')) ?? CONFIG.currentWatchHours;
+        if(qs.has('avg'))    CONFIG.avgWatchTimeSec = toNum(qs.get('avg')) ?? CONFIG.avgWatchTimeSec;    // Sekunden
+        if(qs.has('vpw'))    CONFIG.viewsPerBeatPerWeek = toNum(qs.get('vpw')) ?? CONFIG.viewsPerBeatPerWeek;
+        if(qs.has('vpm'))    CONFIG.viewsPerBeatPerMonth = toNum(qs.get('vpm')) ?? CONFIG.viewsPerBeatPerMonth;
+        if(qs.has('period')) CONFIG.period = (qs.get('period')+"").toLowerCase()==='week' ? 'week':'month';
+        if(qs.has('logo'))   CONFIG.logoUrl = qs.get('logo');
+        if(qs.has('config')) CONFIG.configUrl = qs.get('config');
+        if(qs.has('refresh')) CONFIG.refreshMs = toNum(qs.get('refresh')) ?? CONFIG.refreshMs;
+      };
+
+      // Anzahl Beats berechnen
+      const calcBeatsNeeded = () => {
+        const remaining = Math.max(0, (CONFIG.targetWatchHours||0) - (CONFIG.currentWatchHours||0));
+        const avgHrs = (CONFIG.avgWatchTimeSec||0) / 3600; // Stunden pro View
+        let perBeatViews = CONFIG.period==='week' ? (CONFIG.viewsPerBeatPerWeek||0) : (CONFIG.viewsPerBeatPerMonth ?? Math.round((CONFIG.viewsPerBeatPerWeek||0)*4.345));
+        const perBeatHrs = avgHrs * perBeatViews; // Stunden pro Beat im gewählten Zeitraum
+        if (!perBeatHrs || perBeatHrs<=0) return Infinity;
+        return Math.ceil(remaining / perBeatHrs);
+      };
+
+      // UI aktualisieren
+      const fmt = new Intl.NumberFormat('de-DE');
+      const labelEl = document.getElementById('label');
+      const numEl = document.getElementById('number');
+      const brandImg = document.getElementById('brandLogo');
+      const brandText = document.getElementById('brandText');
+
+      let lastValue = null;
+      const render = () => {
+        const beats = calcBeatsNeeded();
+        const safe = (beats===Infinity || !isFinite(beats)) ? '∞' : fmt.format(beats);
+        const labelText = `Nur noch ${safe} Beats`;
+        labelEl.textContent = labelText;
+        numEl.textContent = safe;
+        // Pop-Animation bei Veränderung
+        if (beats!==lastValue){
+          numEl.style.animation = 'none'; numEl.offsetHeight; numEl.style.animation = 'pop .38s ease-out';
+          lastValue = beats;
+        }
+        // Logo setzen (wenn vorhanden), sonst Fallback-Text
+        if (CONFIG.logoUrl){
+          if (brandImg && brandText){
+            brandImg.src = CONFIG.logoUrl;
+            brandImg.onload = ()=>{ brandImg.style.display='block'; brandText.style.display='none'; };
+            brandImg.onerror = ()=>{ brandImg.style.display='none'; brandText.style.display='block'; };
+          }
+        }
+      };
+
+      // Externe Konfig laden (optional)
+      const loadExternalConfig = async () => {
+        if (!CONFIG.configUrl) return;
+        try{
+          const res = await fetch(CONFIG.configUrl, {cache:'no-store'});
+          if(!res.ok) throw new Error('HTTP '+res.status);
+          const json = await res.json();
+          Object.assign(CONFIG, json);
+        }catch(e){
+          // schweigend weitermachen – Anzeige bleibt mit lokalen Defaults aktiv
+          console.warn('Konfiguration konnte nicht geladen werden:', e);
+        }
+      };
+
+      // Bootstrap
+      overrideFromQuery();
+      render();
+      if (CONFIG.configUrl){
+        loadExternalConfig().then(()=>{ render(); });
+        if (CONFIG.refreshMs && CONFIG.refreshMs>0){
+          setInterval(async ()=>{ await loadExternalConfig(); render(); }, CONFIG.refreshMs);
+        }
+      }
+
+      // Branding unten links stets korrekt setzen – Wunsch: rot & klein
+      // (bereits statisch gesetzt; bei Bedarf hier dynamisch überschreibbar)
+    })();
+  </script>
+</body>
+</html>
